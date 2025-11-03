@@ -1,34 +1,46 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import { BadRequestException, Body,Delete, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import { ExpenseService } from './expense.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 
-@Controller('expense')
+@Controller('expenses')
 @UseGuards(AuthGuard)
 export class ExpenseController {
 
     constructor(private expenseService: ExpenseService) {}
 
-    @Post('create')
+    @Post()
     createExpense(@Body() createExpenseDto:CreateExpenseDto,@Req() req: Request) {
         return this.expenseService.createExpense(createExpenseDto,req.user.id);
     }
 
-    @Get()
-    findMyExpenses(@Req() req: Request){
-        return this.expenseService.getUserNetBalances(req.user.id);
+    @Get('summary')
+    getSummary(@Req() req: Request){
+        return this.expenseService.getSummary(req.user.id);
     }
 
-    @Get(':id')
-    getUserExpensesWithFriend(@Req() req: Request, @Param('id') id: string) {
-        const userId = (req.user as any).id;
-
-        if(userId == id){
-            throw new BadRequestException('Invalid id');
+    @Get('member/:memberId')
+    getExpensesWithFriend(@Req() req: Request, @Param('memberId') memberId: number) {
+        const userId = req.user.id;
+        if(userId == memberId){
+            throw new BadRequestException('Wrong friend id');
         }
-        return this.expenseService.getUserExpensesWithFriend(userId, Number(id));
+        return this.expenseService.getExpensesWithFriend(userId, memberId);
+    }
+
+    @Delete(':id')
+    deleteExpenseById(@Req() req: Request, @Param('id') id: number){
+       return this.expenseService.deleteExpense(id,req.user.id);
+    }
+
+    @Post('delete-expense-member')
+    deleteExpenseMemberById(@Req() req: Request, @Body() memberDetail:{expense_id:number,member_id:number}){
+        if (!memberDetail.expense_id || !memberDetail.member_id) {
+            throw new BadRequestException('expense_id and member_id are required');
+        }
+        return this.expenseService.deleteExpenseMemberById(req.user.id,memberDetail);
     }
 
 }

@@ -4,17 +4,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Expense } from 'src/entities/expense.entity';
 import { Repository } from 'typeorm';
 import { ExpenseMember } from 'src/entities/expensemember.entity';
+import { User } from 'src/entities/user.entity';
 @Injectable()
 export class ExpenseService {
 
     constructor(@InjectRepository(Expense) private expenseRepository: Repository<Expense>,
-    @InjectRepository(ExpenseMember) private expenseMemberRepository: Repository<ExpenseMember>, ) {}
+    @InjectRepository(ExpenseMember) private expenseMemberRepository: Repository<ExpenseMember>, 
+    @InjectRepository(User) private userRepository: Repository<User> ) {}
 
 
     async createExpense(createExpenseDto: CreateExpenseDto,user_id:number) {
         const { name, amount, paid_id, participants } = createExpenseDto;
 
-        const nameExists = await this.findByNameAndUserId(name,user_id);
+        const nameExists = await this.findExpenseByNameAndUserId(name,user_id);
         if(nameExists){
             throw new BadRequestException('Name already exists');
         }
@@ -28,10 +30,21 @@ export class ExpenseService {
         await this.expenseRepository.save(expense);
 
         // Step 2: Handle participant shares
-        let membersToInsert: ExpenseMember[] = [];
+
+       await this.addExpenseMembers(participants,amount,expense.id);
+        
+
+        return {
+            message: 'Expense created successfully'
+        };
+    }
+
+    async addExpenseMembers(participants:any,totalAmount:number,ExpenseId:number){
+
+      let membersToInsert: ExpenseMember[] = [];
 
         if (participants && participants.length > 0) {
-            const equalShare = amount / participants.length;
+            const equalShare = totalAmount / participants.length;
 
             for (const p of participants) {
             let shareAmount = 0;
@@ -39,14 +52,14 @@ export class ExpenseService {
             if (p.share_type === 'equal') {
                 shareAmount = equalShare;
             } else if (p.share_type === 'percentage') {
-                shareAmount = (amount * (p.share_value || 0)) / 100;
+                shareAmount = (totalAmount * (p.share_value || 0)) / 100;
             } else if (p.share_type === 'fixed') {
                 shareAmount = p.share_value || 0;
             }
 
             
             const member = this.expenseMemberRepository.create({
-                expense: { id: expense.id },
+                expense: { id: ExpenseId },
                 user: { id: p.id },
                 shareType: p.share_type,
                 shareValue: p.share_value || null,
@@ -59,14 +72,72 @@ export class ExpenseService {
             await this.expenseMemberRepository.save(membersToInsert);
         }
 
-        return {
-            message: 'Expense created successfully',
-            expense,
-            members: membersToInsert,
-        };
     }
 
-    async findByNameAndUserId(name: string, userId: number) {
+    // remove expense by expense id and user id who is the owner of that expense
+    async deleteExpense(expnseId:number,userId:number){
+      const expense = await this.expenseRepository.findOne({where:{id:expnseId,user:{id:userId}}});
+      if(expense){
+        await this.expenseMemberRepository.delete({ expense: { id: expense.id } });
+        await this.expenseRepository.remove(expense);
+        return { message: 'Expense deleted successfully' };
+      }
+
+      throw new BadRequestException("Invalid expense id or something went wrong");
+    }
+
+    async deleteExpenseMemberById(
+      loginUserId: number,
+      memberDetail: { expense_id: number; member_id: number }
+    ) {
+      const { expense_id, member_id } = memberDetail;
+
+      // 🔹 Step 1: Validate member existence (if not the same as logged-in user)
+      if (loginUserId !== member_id) {
+        const memberExists = await this.userRepository.findOneBy({ id: member_id });
+        if (!memberExists) {
+          throw new BadRequestException('Invalid member ID');
+        }
+      }
+
+      // 🔹 Step 2: Fetch expense and related user
+      const expense = await this.expenseRepository.findOne({
+        where: { id: expense_id },
+        relations: ['user','paidBy'],
+      });
+
+      if (!expense) {
+        throw new BadRequestException('Expense not found');
+      }
+
+      // 🔹 Step 3: Prevent deleting the admin (expense owner)
+      if (expense.user?.id === member_id) {
+        throw new BadRequestException("Admin can't be deleted from their own expense");
+      }
+
+      // 🔹 Step 4: Check permission
+      const isOwner = loginUserId === expense.user.id;
+      const isSelf = loginUserId === member_id;
+      const isPaidUser = loginUserId = expense.paidBy.id;
+
+      if (!isOwner && !isSelf && !isPaidUser) {
+        throw new BadRequestException('You are not authorized to remove this member');
+      }
+
+      // 🔹 Step 5: Delete the expense member
+      const deleteResult = await this.expenseMemberRepository.delete({
+        expense: { id: expense.id },
+        user: { id: member_id },
+      });
+
+      if (deleteResult.affected === 0) {
+        throw new BadRequestException('Expense member not found or already deleted');
+      }
+
+      return { message: 'Expense member deleted successfully' };
+    }
+
+    async findExpenseByNameAndUserId(name: string, userId: number) {
         return this.expenseRepository.findOne({
             where: {
             name,
@@ -75,96 +146,98 @@ export class ExpenseService {
         });
     }
 
-    async getUserNetBalances(userId: number) {
+    async getSummary(userId: number) {
   // 1️⃣ Who owes me (I paid)
-    const owedToMe = await this.expenseMemberRepository
-        .createQueryBuilder('em')
-        .innerJoin('em.expense', 'expense')
-        .innerJoin('em.user', 'user')
-        .where('expense.paidBy = :userId', { userId })
-        .andWhere('em.user != :userId', { userId })
-        .andWhere('em.amountOwed > 0')
-        .select([
-        'user.id AS userId',
-        'user.name AS userName',
-        'SUM(em.amountOwed) AS total',
-        ])
-        .groupBy('user.id')
-        .getRawMany();
+      const owedToMe = await this.expenseMemberRepository
+          .createQueryBuilder('em')
+          .innerJoin('em.expense', 'expense')
+          .innerJoin('em.user', 'user')
+          .where('expense.paidBy = :userId', { userId })
+          .andWhere('em.user != :userId', { userId })
+          .andWhere('em.amountOwed > 0')
+          .select([
+          'user.id AS userId',
+          'user.name AS userName',
+          'SUM(em.amountOwed) AS total',
+          ])
+          .groupBy('user.id')
+          .getRawMany();
 
-    // 2️⃣ Who I owe (they paid)
-    const iOwe = await this.expenseMemberRepository
-        .createQueryBuilder('em')
-        .innerJoin('em.expense', 'expense')
-        .innerJoin('expense.paidBy', 'payer')
-        .where('em.user = :userId', { userId })
-        .andWhere('expense.paidBy != :userId', { userId })
-        .andWhere('em.amountOwed > 0')
-        .select([
-        'payer.id AS userId',
-        'payer.name AS userName',
-        'SUM(em.amountOwed) AS total',
-        ])
-        .groupBy('payer.id')
-        .getRawMany();
+      // 2️⃣ Who I owe (they paid)
+      const iOwe = await this.expenseMemberRepository
+          .createQueryBuilder('em')
+          .innerJoin('em.expense', 'expense')
+          .innerJoin('expense.paidBy', 'payer')
+          .where('em.user = :userId', { userId })
+          .andWhere('expense.paidBy != :userId', { userId })
+          .andWhere('em.amountOwed > 0')
+          .select([
+          'payer.id AS userId',
+          'payer.name AS userName',
+          'SUM(em.amountOwed) AS total',
+          ])
+          .groupBy('payer.id')
+          .getRawMany();
 
-    // 3️⃣ Merge both sides (calculate net balance)
-    const balanceMap = new Map<number, { userId: number; userName: string; balance: number }>();
+      // 3️⃣ Merge both sides (calculate net balance)
+      const balanceMap = new Map<number, { userId: number; userName: string; balance: number }>();
 
-    for (const o of owedToMe) {
-        balanceMap.set(Number(o.userId), {
-        userId: Number(o.userId),
-        userName: o.userName,
-        balance: Number(o.total),
-        });
+      for (const o of owedToMe) {
+          balanceMap.set(Number(o.userId), {
+          userId: Number(o.userId),
+          userName: o.userName,
+          balance: Number(o.total),
+          });
+      }
+
+      for (const o of iOwe) {
+          const existing = balanceMap.get(Number(o.userId));
+          if (existing) {
+          existing.balance -= Number(o.total);
+          } else {
+          balanceMap.set(Number(o.userId), {
+              userId: Number(o.userId),
+              userName: o.userName,
+              balance: -Number(o.total),
+          });
+          }
+      }
+
+      // 4️⃣ Create array with status
+      const users = Array.from(balanceMap.values()).map(b => ({
+          ...b,
+          status:
+          b.balance > 0
+              ? 'owes you'
+              : b.balance < 0
+              ? 'you owe'
+              : 'settled',
+      }));
+
+      // 5️⃣ Compute overall net balance
+      const overall = users.reduce((sum, d) => sum + d.balance, 0);
+
+      const overallStatus =
+          overall > 0
+          ? `You are owed ${overall.toFixed(2)}`
+          : overall < 0
+          ? `You owe ${Math.abs(overall).toFixed(2)}`
+          : 'All settled!';
+
+      return {
+          summary: {
+          netBalance: overall,
+          overallStatus,
+          },
+          users,
+      };
     }
 
-    for (const o of iOwe) {
-        const existing = balanceMap.get(Number(o.userId));
-        if (existing) {
-        existing.balance -= Number(o.total);
-        } else {
-        balanceMap.set(Number(o.userId), {
-            userId: Number(o.userId),
-            userName: o.userName,
-            balance: -Number(o.total),
-        });
-        }
-    }
-
-    // 4️⃣ Create array with status
-    const details = Array.from(balanceMap.values()).map(b => ({
-        ...b,
-        status:
-        b.balance > 0
-            ? 'owes you'
-            : b.balance < 0
-            ? 'you owe'
-            : 'settled',
-    }));
-
-    // 5️⃣ Compute overall net balance
-    const overall = details.reduce((sum, d) => sum + d.balance, 0);
-
-    const overallStatus =
-        overall > 0
-        ? `You are owed ${overall.toFixed(2)}`
-        : overall < 0
-        ? `You owe ${Math.abs(overall).toFixed(2)}`
-        : 'All settled!';
-
-    return {
-        summary: {
-        totalOwedToYou: owedToMe.reduce((s, o) => s + Number(o.total), 0),
-        totalYouOwe: iOwe.reduce((s, o) => s + Number(o.total), 0),
-        netBalance: overall,
-        overallStatus,
-        },
-        details,
-    };
-    }
-
-async getUserExpensesWithFriend(userId: number, friendId: number) {
+async getExpensesWithFriend(userId: number, friendId: number) {
+  const memberExists = await this.userRepository.findOneBy({id:friendId});
+  if(!memberExists){
+    throw new BadRequestException("Invalid friend id");
+  }
   // 1️⃣ Fetch all expenses involving either userId or friendId
   const expenses = await this.expenseMemberRepository
     .createQueryBuilder('em')
