@@ -158,6 +158,7 @@ export class ExpenseService {
           .select([
           'user.id AS userId',
           'user.name AS userName',
+          'user.email AS userEmail',
           'SUM(em.amountOwed) AS total',
           ])
           .groupBy('user.id')
@@ -174,18 +175,20 @@ export class ExpenseService {
           .select([
           'payer.id AS userId',
           'payer.name AS userName',
+          'payer.email AS userEmail',
           'SUM(em.amountOwed) AS total',
           ])
           .groupBy('payer.id')
           .getRawMany();
 
       // 3️⃣ Merge both sides (calculate net balance)
-      const balanceMap = new Map<number, { userId: number; userName: string; balance: number }>();
+      const balanceMap = new Map<number, { userId: number; userName: string; balance: number,userEmail: string; }>();
 
       for (const o of owedToMe) {
           balanceMap.set(Number(o.userId), {
           userId: Number(o.userId),
           userName: o.userName,
+          userEmail: o.userEmail,
           balance: Number(o.total),
           });
       }
@@ -198,6 +201,7 @@ export class ExpenseService {
           balanceMap.set(Number(o.userId), {
               userId: Number(o.userId),
               userName: o.userName,
+              userEmail: o.userEmail,
               balance: -Number(o.total),
           });
           }
