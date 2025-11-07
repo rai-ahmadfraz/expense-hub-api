@@ -11,6 +11,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { Expense } from './expense.entity';
 import { ExpenseMember } from './expensemember.entity';
+import { Friend } from './friend.entity';
 
 @Entity('users')
 export class User {
@@ -46,6 +47,15 @@ export class User {
   // Expenses where this user is a participant
   @OneToMany(() => ExpenseMember, (expenseMember) => expenseMember.user)
   expenseMemberships: ExpenseMember[];
+
+
+  // Create friend by this user
+  @OneToMany(() => Friend, (friend) => friend.user)
+  createdFriends: Friend[];
+
+  //friend request this user make
+  @OneToMany(() => Friend, (friend) => friend.friend)
+  friendRequest: Friend[];
 
   @BeforeInsert()
   @BeforeUpdate()

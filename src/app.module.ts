@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ExpenseModule } from './expense/expense.module';
+import { FriendModule } from './friend/friend.module';
 @Module({
   imports: [AuthModule, UsersModule,
     TypeOrmModule.forRoot({
@@ -25,6 +26,7 @@ import { ExpenseModule } from './expense/expense.module';
       // logging: true, // optional
     }),
     ExpenseModule,
+    FriendModule,
   ],
   controllers: [AppController],
   providers: [AppService],
