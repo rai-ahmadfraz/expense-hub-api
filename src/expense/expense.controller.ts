@@ -13,6 +13,12 @@ export class ExpenseController {
 
     @Post()
     createExpense(@Body() createExpenseDto:CreateExpenseDto,@Req() req: Request) {
+        if (!createExpenseDto.is_personal && !createExpenseDto.paid_id) {
+            throw new BadRequestException('Payer Id is required when expense is not personal');
+        }
+        else if (!createExpenseDto.is_personal && (!createExpenseDto.participants || createExpenseDto.participants.length === 0)) {
+            throw new BadRequestException('Participants are required when expense is not personal');
+        }
         return this.expenseService.createExpense(createExpenseDto,req.user.id);
     }
 

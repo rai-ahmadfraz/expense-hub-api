@@ -18,7 +18,11 @@ export class FriendController {
   serachFriend(@Req() req: Request, @Param('term') term:string){
       // this.friendService.serachFriend();
   }
-  addFriend(@Req() req: Request, @Param('term') term:string){
+
+  @Get('add/:friendId')
+  addFriend(@Req() req: Request, @Param('friendId') friendId:number){
+
+    return this.friendService.addNewFriend(req.user.id,friendId);
     
   }
 }

@@ -22,6 +22,9 @@ export class Expense {
   @Column('decimal', { precision: 10, scale: 2, name: 'total_amount', default: 0 })
   totalAmount: number;
 
+  @Column({ name: 'is_personal', default: false })
+  is_personal: boolean;
+
   // User who created the expense entry
   @ManyToOne(() => User, (user) => user.createdExpenses, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

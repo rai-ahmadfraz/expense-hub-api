@@ -13,31 +13,38 @@ export class ExpenseService {
     @InjectRepository(User) private userRepository: Repository<User> ) {}
 
 
-    async createExpense(createExpenseDto: CreateExpenseDto,user_id:number) {
-        const { name, amount, paid_id, participants } = createExpenseDto;
+    async createExpense(createExpenseDto: CreateExpenseDto, user_id: number) {
+        const { name, amount, paid_id, participants, is_personal } = createExpenseDto;
 
-        const nameExists = await this.findExpenseByNameAndUserId(name,user_id);
-        if(nameExists){
-            throw new BadRequestException('Name already exists');
-        }
-        // Step 1: Create the expense record
+        let paidId = paid_id;
+        if (is_personal) paidId = user_id;
+
         const expense = this.expenseRepository.create({
             name,
-            totalAmount:amount,
+            totalAmount: amount,
             user: { id: user_id },
-            paidBy: { id: paid_id },
+            paidBy: { id: paidId },
+            is_personal: is_personal || false,
         });
-        await this.expenseRepository.save(expense);
 
-        // Step 2: Handle participant shares
+        try {
+            // Attempt to save. DB unique constraint will prevent duplicates.
+            await this.expenseRepository.save(expense);
+        } catch (err: any) {
+            if (err.code === 'ER_DUP_ENTRY') {
+                // Handle DB-level duplicate
+                throw new BadRequestException('Expense with this name already exists');
+            }
+            throw err;
+        }
 
-       await this.addExpenseMembers(participants,amount,expense.id);
-        
+        if (participants && participants.length > 0) {
+            await this.addExpenseMembers(participants, amount, expense.id);
+        }
 
-        return {
-            message: 'Expense created successfully'
-        };
+        return { message: 'Expense created successfully' };
     }
+
 
     async addExpenseMembers(participants:any,totalAmount:number,ExpenseId:number){
 
