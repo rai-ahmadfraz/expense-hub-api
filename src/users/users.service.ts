@@ -24,7 +24,7 @@ export class UserService {
       },
     });
 
-    return user;
+    return {id: user.id, email: user.email, name: user.name, createdAt: user.createdAt};
   }
 
   async searchUsers(user_id: number, term: string) {
