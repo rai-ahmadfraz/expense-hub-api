@@ -1,59 +1,71 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Friend } from 'src/entities/friend.entity';
-import { Repository } from 'typeorm';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class FriendService {
+  constructor(private prisma: PrismaService) {}
 
-    constructor(@InjectRepository(Friend) private friendRepository: Repository<Friend>){}
+  async getFriendsList(loginUserId: number) {
+    const relations = await this.prisma.friend.findMany({
+      where: {
+        OR: [
+          { userId: loginUserId, status: 'accepted' },
+          { friendId: loginUserId, status: 'accepted' },
+        ],
+      },
+      include: {
+        user: true,
+        friend: true,
+      },
+    });
 
+    // Extract only the other friend (not yourself)
+    const friends = relations.map(f =>
+      f.userId === loginUserId ? f.friend : f.user,
+    );
 
-    async searchFriend(){
-        // this.friendRespository.find({where:{}});
-
-    }
-
-    async getFriendsList(loginUserId: number) {
-        const relations = await this.friendRepository.find({
-            where: [
-            { user: { id: loginUserId }, status: 'accepted' },
-            { friend: { id: loginUserId }, status: 'accepted' },
-            ],
-            relations: ['user', 'friend'],
-        });
-
-        // Extract only the other friend (not yourself)
-        const friends = relations.map(f => 
-            f.user.id === loginUserId ? f.friend : f.user
+    // Remove duplicates if any
+    const uniqueFriends = friends
+        .filter((friend): friend is NonNullable<typeof friend> => friend != null)
+        .filter((friend, index, arr) => 
+            arr.findIndex(f => f.id === friend.id) === index
         );
 
-        // Remove duplicates if any
-        const uniqueFriends = friends.filter(
-            (friend, index, arr) => arr.findIndex(f => f.id === friend.id) === index
-        );
+    return uniqueFriends;
+  }
 
-        return uniqueFriends;
+  async addNewFriend(loginUserId: number, friendId: number) {
+    if (loginUserId === friendId) {
+      throw new BadRequestException('Cannot add yourself');
     }
 
-    async addNewFriend(loginUserId:number,friendId:number){
+    const friendList = await this.getFriendsList(loginUserId);
+    const friendIds = friendList.map(f => f.id);
 
-        const friendList = await this.getFriendsList(loginUserId); 
-        const friendIds = friendList.map((friend: any) => friend.id);
-        
-        if(friendId == loginUserId){
-            throw new BadRequestException('Cannot add yourself');
-        }
-        else if(friendIds.includes(friendId)){
-            throw new BadRequestException('Its already in your Friend list');
-        }
-        
-        const friend = this.friendRepository.create({
-            user:{id:loginUserId},
-            friend:{id:friendId}
-        });
-
-        return await this.friendRepository.save(friend);
+    if (friendIds.includes(friendId)) {
+      throw new BadRequestException('Already in your friend list');
     }
 
+    return this.prisma.friend.create({
+      data: {
+        user: { connect: { id: loginUserId } },
+        friend: { connect: { id: friendId } },
+      },
+    });
+  }
+
+  async searchFriend(term: string) {
+    return this.prisma.friend.findMany({
+      where: {
+        OR: [
+          { user: { name: { contains: term, mode: 'insensitive' } } },
+          { friend: { name: { contains: term, mode: 'insensitive' } } },
+        ],
+      },
+      include: {
+        user: true,
+        friend: true,
+      },
+    });
+  }
 }

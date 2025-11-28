@@ -1,0 +1,74 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  createdExpenses  Expense[]       @relation("UserCreatedExpenses")
+  paidExpenses     Expense[]       @relation("UserPaidExpenses")
+  expenseMembers   ExpenseMember[]
+  createdFriends   Friend[]        @relation("UserCreatedFriends")
+  friendRequests   Friend[]        @relation("UserFriendRequests")
+}
+
+model Friend {
+  id        Int      @id @default(autoincrement())
+  status    String   @default("accepted")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user     User     @relation("UserCreatedFriends", fields: [userId], references: [id], onDelete: Cascade)
+  userId   Int
+
+  friend   User?    @relation("UserFriendRequests", fields: [friendId], references: [id], onDelete: SetNull)
+  friendId Int?
+}
+
+model Expense {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  totalAmount Decimal    @default(0.00)
+  isPersonal  Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  user    User   @relation("UserCreatedExpenses", fields: [userId], references: [id], onDelete: Cascade)
+  userId  Int
+
+  paidBy  User?  @relation("UserPaidExpenses", fields: [paidById], references: [id], onDelete: SetNull)
+  paidById Int?
+
+  members ExpenseMember[]
+}
+
+model ExpenseMember {
+  id          Int      @id @default(autoincrement())
+  shareType   String    @default("equal")
+  shareValue  Decimal? 
+  amountOwed  Decimal   @default(0.00)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  expenseId Int
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+
+  @@unique([expenseId, userId]) // same as TypeORM Unique(['expense', 'user'])
+}

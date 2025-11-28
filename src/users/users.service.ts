@@ -1,37 +1,42 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { Repository } from 'typeorm';
-import { User } from 'src/entities/user.entity';
-import { InjectRepository } from '@nestjs/typeorm';    
-import { ILike, Not } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
+  constructor(private prisma: PrismaService) {}
 
-    constructor(@InjectRepository(User) private usersRepository: Repository<User>) {}
-
-    async createUser(createUserDto:CreateUserDto) {
-
-        const existingUser = await this.usersRepository.findOneBy({email: createUserDto.email});
-        if(existingUser) {
-            return {
-                message: 'User with this email already exists'
-            };
-        }
-        const user = this.usersRepository.create(createUserDto);  
-        return await this.usersRepository.save(user);  
+  async createUser(createUserDto: CreateUserDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: createUserDto.email },
+    });
+    if (existingUser) {
+      return { message: 'User with this email already exists' };
     }
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
-
-    async searchUsers(user_id: number, term: string): Promise<User[]> {
-    const users = await this.usersRepository.find({
-        where: [
-        { name: ILike(`%${term}%`), id: Not(user_id) },
-        { email: ILike(`%${term}%`), id: Not(user_id) },
-        ],
+    const user = await this.prisma.user.create({
+      data: {
+        email: createUserDto.email,
+        name: createUserDto.name,
+        password: hashedPassword,
+      },
     });
 
-    return users;
-    }
+    return user;
+  }
+
+  async searchUsers(user_id: number, term: string) {
+    return this.prisma.user.findMany({
+      where: {
+        id: { not: user_id },
+        email: {
+          contains: term,
+          mode: 'insensitive',
+        },
+      },
+    });
+  }
 
 }
