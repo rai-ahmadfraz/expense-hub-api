@@ -6,9 +6,6 @@ import { CreateExpenseDto } from './dto/create-expense.dto';
 export class ExpenseService {
   constructor(private prisma: PrismaService) {}
 
-  // -------------------------
-  // Create Expense
-  // -------------------------
   async createExpense(createExpenseDto: CreateExpenseDto, userId: number) {
     const { name, amount, paid_id, participants, is_personal } = createExpenseDto;
     const paidId = is_personal ? userId : paid_id;
@@ -37,9 +34,6 @@ export class ExpenseService {
     }
   }
 
-  // -------------------------
-  // Add Expense Members
-  // -------------------------
   async addExpenseMembers(participants: any[], totalAmount: number, expenseId: number) {
     const membersToInsert = participants.map(p => {
       let shareAmount = 0;
@@ -65,9 +59,6 @@ export class ExpenseService {
     }
   }
 
-  // -------------------------
-  // Delete Expense
-  // -------------------------
   async deleteExpense(expenseId: number, userId: number) {
     const expense = await this.prisma.expense.findFirst({ where: { id: expenseId, userId } });
     if (!expense) throw new BadRequestException('Invalid expense id or something went wrong');
@@ -78,9 +69,6 @@ export class ExpenseService {
     return { message: 'Expense deleted successfully' };
   }
 
-  // -------------------------
-  // Delete Expense Member
-  // -------------------------
   async deleteExpenseMemberById(
     loginUserId: number,
     memberDetail: { expense_id: number; member_id: number },
@@ -116,16 +104,10 @@ export class ExpenseService {
     return { message: 'Expense member deleted successfully' };
   }
 
-  // -------------------------
-  // Find expense by name and user
-  // -------------------------
   async findExpenseByNameAndUserId(name: string, userId: number) {
     return this.prisma.expense.findFirst({ where: { name, userId } });
   }
 
-  // -------------------------
-  // Get Summary
-  // -------------------------
   async getSummary(userId: number) {
     // Who owes me
     const owedAgg = await this.prisma.expenseMember.groupBy({
@@ -187,9 +169,6 @@ export class ExpenseService {
     return { summary: { netBalance: overall, overallStatus }, users: usersSummary };
   }
 
-  // -------------------------
-  // Get Expenses With Friend
-  // -------------------------
   async getExpensesWithFriend(userId: number, friendId: number) {
     const memberExists = await this.prisma.user.findUnique({ where: { id: friendId } });
     if (!memberExists) throw new BadRequestException('Invalid friend id');
@@ -208,6 +187,12 @@ export class ExpenseService {
       orderBy: { expense: { createdAt: 'desc' } },
     });
 
+    const expenseIds = expenses.map(e => e.expenseId);
+    const allMembers = await this.prisma.expenseMember.findMany({
+      where: { expenseId: { in: expenseIds } },
+      include: { user: true },
+    });
+
     const formatted = expenses.map(e => ({
       expenseId: e.expenseId,
       title: e.expense.name,
@@ -221,14 +206,21 @@ export class ExpenseService {
         name: e.user.name,
         amount: Number(e.amountOwed),
       },
-      members: [], // Optional: fetch members separately if needed
+      members: allMembers
+        .filter(m => m.expenseId === e.expenseId)
+        .map(m => ({
+          userId: m.userId,
+          name: m.user.name,
+          amount: Number(m.amountOwed),
+        })),
       createdAt: e.expense.createdAt,
       status: e.expense.paidById === userId ? 'owes you' : 'you owe',
     }));
 
+    // Calculate net balance
     const netBalance = formatted.reduce(
       (sum, e) => (e.paidBy.userId === userId ? sum + e.owes.amount : sum - e.owes.amount),
-      0,
+      0
     );
 
     return {
@@ -244,4 +236,13 @@ export class ExpenseService {
       expenses: formatted,
     };
   }
+
+
+  async expenseHistory(userId: number) {
+  return await this.prisma.expense.findMany({
+  where: { members: { some: { userId } } },
+  include: { members: { include: { user: { select: { id:true, name:true, email:true } } } } },
+});
+}
+ 
 }

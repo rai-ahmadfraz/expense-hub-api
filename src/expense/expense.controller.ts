@@ -26,6 +26,10 @@ export class ExpenseController {
     getSummary(@Req() req: Request){
         return this.expenseService.getSummary(req.user.id);
     }
+    @Get('history')
+    getExpenseHistory(@Req() req: Request){
+        return this.expenseService.expenseHistory(req.user.id);
+    }
 
     @Get('member/:memberId')
     getExpensesWithFriend(@Req() req: Request, @Param('memberId') memberId: number) {
