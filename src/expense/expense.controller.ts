@@ -49,4 +49,9 @@ export class ExpenseController {
         return this.expenseService.deleteExpenseMemberById(req.user.id,memberDetail);
     }
 
+    @Get('history')
+    getHistory(@Req() req: Request){
+        return this.expenseService.getHistory(req.user.id);
+    }
+
 }

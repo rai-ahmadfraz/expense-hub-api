@@ -15,8 +15,8 @@ import { FriendModule } from './friend/friend.module';
       host: 'localhost',
       port: 3306,
       username: 'root',
-      password: '',
-      database: 'splitit_db',
+      password: 'RedEye1384',
+      database: 'expense',
 
       // ===== PRODUCTION (Railway) =====
       // url: "mysql://root:oKizfCJWqJmUIMeQMFmNzukDcRJfHcxT@mysql.railway.internal:3306/railway", // Railway variable: ${{ MySQL.MYSQL_URL }}

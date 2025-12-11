@@ -348,6 +348,14 @@ async getExpensesWithFriend(userId: number, friendId: number) {
   };
 }
 
-
-    
+  async getHistory(userId: number) {
+    return this.expenseRepository
+      .createQueryBuilder('expense')
+      .leftJoinAndSelect('expense.paidBy', 'paidBy')
+      .leftJoinAndSelect('expense.members', 'members') // Changed from 'expenseMembers' to 'members'
+      .leftJoinAndSelect('members.user', 'memberUser') // Changed from 'expenseMembers.user' to 'members.user'
+      .innerJoin('expense.members', 'myMembership', 'myMembership.user.id = :userId', { userId }) // Changed here too
+      .orderBy('expense.created_at', 'DESC')
+      .getMany();
+  }
 }
