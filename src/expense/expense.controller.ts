@@ -27,6 +27,11 @@ export class ExpenseController {
         return this.expenseService.getSummary(req.user.id);
     }
 
+    @Get('personal')
+    getPersonalExpense(@Req() req: Request){
+        return this.expenseService.getPersonalExpenses(req.user.id);
+    }
+
     @Get('member/:memberId')
     getExpensesWithFriend(@Req() req: Request, @Param('memberId') memberId: number) {
         const userId = req.user.id;

@@ -14,17 +14,20 @@ export class ExpenseService {
 
 
     async createExpense(createExpenseDto: CreateExpenseDto, user_id: number) {
-        const { name, amount, paid_id, participants, is_personal } = createExpenseDto;
+      console.log(createExpenseDto);
+        const { name, amount, paid_id, participants, is_personal,type } = createExpenseDto;
 
         let paidId = paid_id;
         if (is_personal) paidId = user_id;
 
+        console.log(type);
         const expense = this.expenseRepository.create({
             name,
             totalAmount: amount,
             user: { id: user_id },
             paidBy: { id: paidId },
             is_personal: is_personal || false,
+            type: is_personal ? type || "out" : "out"
         });
 
         try {
@@ -151,6 +154,13 @@ export class ExpenseService {
             user: { id: userId },
             }
         });
+    }    
+    async getPersonalExpenses(userId: number) {
+      return this.expenseRepository.find({
+        where: {
+          user: { id: userId }
+        }
+      });
     }
 
     async getSummary(userId: number) {

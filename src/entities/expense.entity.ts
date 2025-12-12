@@ -25,6 +25,9 @@ export class Expense {
   @Column({ name: 'is_personal', default: false })
   is_personal: boolean;
 
+  @Column({ name: 'type', default: 'out' })
+  type: string;
+
   // User who created the expense entry
   @ManyToOne(() => User, (user) => user.createdExpenses, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

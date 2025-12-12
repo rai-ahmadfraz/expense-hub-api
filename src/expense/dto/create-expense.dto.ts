@@ -4,7 +4,8 @@ import {
   IsBoolean,
   ValidateIf,
   ArrayNotEmpty,
-  IsNumber
+  IsNumber,
+  IsString
 } from "class-validator";
 
 export class CreateExpenseDto {
@@ -21,6 +22,9 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsBoolean()
   is_personal: boolean;
+
+  @IsOptional()
+  type: string;
 
   @IsOptional()
   @ValidateIf(o => o.is_personal === false)
