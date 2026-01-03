@@ -15,7 +15,7 @@ import { FriendModule } from './friend/friend.module';
       host: 'localhost',
       port: 3306,
       username: 'root',
-      password: 'RedEye1384',
+      password: 'RedEye1384@',
       database: 'expense',
 
       // ===== PRODUCTION (Railway) =====

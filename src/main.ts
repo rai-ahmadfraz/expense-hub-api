@@ -13,6 +13,6 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true, // allow cookies or auth headers
   });
-  await app.listen(process.env.PORT ?? 8000);
+  await app.listen(process.env.PORT ?? 9100);
 }
 bootstrap();
