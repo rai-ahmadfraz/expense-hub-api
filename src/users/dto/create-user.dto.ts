@@ -11,5 +11,5 @@ export class CreateUserDto {
     password: string;
 
     @IsOptional()
-    currency: string = '$';
+    currency: string = "USD";
 }

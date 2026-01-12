@@ -15,7 +15,7 @@ export class ExpenseService {
 
     async createExpense(createExpenseDto: CreateExpenseDto, user_id: number) {
       console.log(createExpenseDto);
-        const { name, amount, paid_id, participants, is_personal,type } = createExpenseDto;
+        const { name, amount, paid_id, participants, is_personal,type,currency } = createExpenseDto;
 
         let paidId = paid_id;
         if (is_personal) paidId = user_id;
@@ -27,6 +27,7 @@ export class ExpenseService {
             user: { id: user_id },
             paidBy: { id: paidId },
             is_personal: is_personal || false,
+            currency: currency || 'USD',
             type: is_personal ? type || "out" : "out"
         });
 

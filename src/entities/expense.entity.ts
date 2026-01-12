@@ -19,7 +19,7 @@ export class Expense {
   @Column({ length: 255 })
   name: string; // e.g., "Monal Dinner", "Taxi Ride"
 
-  @Column({ length: 100, default: '$' })
+  @Column({ length: 100, default: 'USD' })
   currency: string;
 
   @Column('decimal', { precision: 10, scale: 2, name: 'total_amount', default: 0 })

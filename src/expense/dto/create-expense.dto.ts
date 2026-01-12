@@ -27,7 +27,7 @@ export class CreateExpenseDto {
   type: string;
 
   @IsOptional()
-  currency: string;
+  currency: string = "USD";
 
   @IsOptional()
   @ValidateIf(o => o.is_personal === false)
