@@ -16,8 +16,11 @@ export class Expense {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true, length: 255 })
+  @Column({ length: 255 })
   name: string; // e.g., "Monal Dinner", "Taxi Ride"
+
+  @Column({ length: 100, default: '$' })
+  currency: string;
 
   @Column('decimal', { precision: 10, scale: 2, name: 'total_amount', default: 0 })
   totalAmount: number;

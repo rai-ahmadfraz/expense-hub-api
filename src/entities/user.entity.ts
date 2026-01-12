@@ -27,6 +27,9 @@ export class User {
   @Column({ length: 100 })
   name: string;
 
+  @Column({ length: 100, default: '$' })
+  currency: string;
+
   @Column({ default: true, name: 'is_active' })
   isActive: boolean;
 

@@ -27,6 +27,9 @@ export class CreateExpenseDto {
   type: string;
 
   @IsOptional()
+  currency: string;
+
+  @IsOptional()
   @ValidateIf(o => o.is_personal === false)
   @ArrayNotEmpty({ message: 'Participants are required when expense is not personal' })
   participants: {

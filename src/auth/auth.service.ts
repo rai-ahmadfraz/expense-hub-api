@@ -15,6 +15,7 @@ export class AuthService {
         id: number;
         name: string;
         email: string;
+        currency: string;
         }> {
     const user = await this.userRespository.createQueryBuilder('user').addSelect('user.password')
         .where('user.email = :email', { email: loginUserDto.email }).getOne();
@@ -31,6 +32,7 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
+        currency: user.currency
         };
     }
     throw new BadRequestException('Invalid credentials');

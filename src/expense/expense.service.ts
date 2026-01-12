@@ -158,7 +158,8 @@ export class ExpenseService {
     async getPersonalExpenses(userId: number) {
       return this.expenseRepository.find({
         where: {
-          user: { id: userId }
+          user: { id: userId },
+          is_personal: true,
         }
       });
     }
