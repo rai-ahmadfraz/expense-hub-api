@@ -364,6 +364,7 @@ async getExpensesWithFriend(userId: number, friendId: number) {
     return this.expenseRepository
       .createQueryBuilder('expense')
       .leftJoinAndSelect('expense.paidBy', 'paidBy')
+      .leftJoinAndSelect('expense.user', 'user')
       .leftJoinAndSelect('expense.members', 'members') // Changed from 'expenseMembers' to 'members'
       .leftJoinAndSelect('members.user', 'memberUser') // Changed from 'expenseMembers.user' to 'members.user'
       .innerJoin('expense.members', 'myMembership', 'myMembership.user.id = :userId', { userId }) // Changed here too
